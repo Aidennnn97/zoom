@@ -13,7 +13,7 @@ app.get("/", (_, res) => res.render("home"));
 // 홈 외의 다른 페이지 이동시 홈으로 이동
 app.get("/*", (_, res) => res.redirect("/"));
 
-const handleListen = () => console.log(`Listening on http://localhost:3000 or ws://localhost:3000`);
+const handleListen = () => console.log(`Listening on http://localhost:3000`);
 // app.listen(3000, handleListen);
 
 // http, webSocket서버 둘 다 돌리는 방법
@@ -29,9 +29,15 @@ const bSockets = [];
 wss.on("connection", (bSocket)=>{
     console.log("Connected to Browser ✅"); // 연결이 생기면
     bSockets.push(bSocket); // 연결된 커넥션 푸시
-    console.log(bSockets);
-    bSocket.on("message", (message)=>{
-        bSockets.forEach((aSocket) => aSocket.send(message.toString('utf-8'))); // 연결된 모든 브라우저로 메세지를 보냄
+    bSocket["nickname"] = "Anonymous" // 초기 닉네임 설정, 소켓에 넣고싶은 정보 아무거나 저장 가능
+    bSocket.on("message", (msg)=>{
+        const message = JSON.parse(msg.toString('utf-8')); // 브라우저로부터 받은 메세지를 JSON으로 파싱
+        switch(message.type){
+            case "new_message":
+                bSockets.forEach((aSocket) => aSocket.send(`${bSocket.nickname}: ${message.payload}`)); // 연결된 모든 브라우저로 메세지를 보냄
+            case "nickname":
+                bSocket["nickname"] = message.payload;
+        }
     })
     bSocket.on("close", ()=> console.log("Disconnected from the Browser ❌")); // 브라우저가 꺼졌을 때
 });
