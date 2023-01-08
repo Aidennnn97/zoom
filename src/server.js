@@ -22,13 +22,16 @@ const server = http.createServer(app);
 // webSocket서버 생성
 const wss = new WebSocket.Server({server}); // {server} is optional
 
+// FakeDatabase(누군가 연결되면 아래 변수에 커넥션 담음)
+const bSockets = [];
+
 // bsocket: backendSocket
 wss.on("connection", (bSocket)=>{
-    // console.log(bSocket);
     console.log("Connected to Browser ✅"); // 연결이 생기면
-    bSocket.send("hello!!"); // 브라우저로 메세지를 보냄
+    bSockets.push(bSocket); // 연결된 커넥션 푸시
+    console.log(bSockets);
     bSocket.on("message", (message)=>{
-        console.log(message.toString('utf-8')); // 브라우저가 서버에 보낸 메세지
+        bSockets.forEach((aSocket) => aSocket.send(message.toString('utf-8'))); // 연결된 모든 브라우저로 메세지를 보냄
     })
     bSocket.on("close", ()=> console.log("Disconnected from the Browser ❌")); // 브라우저가 꺼졌을 때
 });
