@@ -2,11 +2,8 @@
 
 Zoom Clone using NodeJS, WebRTC and Websockets.
 
-현재 Express는 Http를 다루고 있고 ws(webSocket)를 지원하지 않기 때문에
-ws를 사용하기위해 같은 서버에 ws기능을 설치하려면 function을 추가.
-
 ## babel
- - Javascript(동적 타입의 인터프린터 언어)로 결과물을 만들어주는 컴파일러
+ - Javascript(동적 타입의 인터프린터 언어)로 결과물을 만들어주는 컴파일러.
  - 동적타입이라는 의미는 컴파일 환경이 아닌, 실행하는 런타임 환경에서 결정한다는 의미.
  - 사용이유
    - 1. 크로스 브라우징 : 즉, JavaScript(ES6) -> JavaScript(ES5)로 변환해준다.(브라우저 하위 호환성을 생각하여 es6로 작성하여도 구형 브라우저가 인식할 수 있도록 es5로 변환해줌)
@@ -24,10 +21,17 @@ ws를 사용하기위해 같은 서버에 ws기능을 설치하려면 function�
  - 서버는 res를 날린 후 유저가 누구인지 기억하지 못한다(stateless), 기억하게 하려면 쿠키 사용.
 
 ## WebSocket(protocol)
- - 서버가 websocket 지원하면 ex) wss://naver.com 이런식, wss(Secure Web Socket)
- - webSocket 연결(connection)이 일어날 땐 마치 악수처럼 작동(handshake)
+ - 서버가 websocket 지원하면 ex) wss://naver.com 이런식, wss(Secure Web Socket).
+ - webSocket 연결(connection)이 일어날 땐 마치 악수처럼 작동(handshake).
  - 브라우저가 서버로 webSocket req를 보내면 서버가 받거나 거절함, 이런 악수가 한번 성립되면 연결은 성립(establish)됨.
  - 연결돼있기 때문에 서버는 유저가 누구인지 기억할 수 있고, 원한다면 유저가 서버에게 서버가 유저에게 어떤 때나 메세지를 보낼 수 있으며 req, res 과정이 필요하지 않고 그냥 발생함.
- - bi-direction(양방향의)연결
+ - bi-direction(양방향의)연결.
 
 ## WS: a Node.js WebSocket library(implementation)
+ - 현재 Express는 Http를 다루고 있고 ws(webSocket)를 지원하지 않기 때문에 ws를 사용하기위해 같은 서버에 ws기능을 설치하려면 function을 추가.
+
+## Socket IO
+ - 프론트와 백 간의 실시간, 양방향, event 기반의 통신을 가능하게 해주는 프레임워크 또는 라이브러리.
+ - WebSocket의 부가기능이 아님.
+ - WebSocket 보다 높은 신뢰성, 빠른 속도, 탄력성이 뛰어나며 WebSocket은 SocketIO가 기능을 제공하는 방법중 하나이다.
+ - WebSocket을 사용하지만 브라우저가 websocket을 지원하지 않으면 다른 것(Ex, HTTP long Polling)을 사용한다.
