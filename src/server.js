@@ -24,12 +24,18 @@ const httpServer = http.createServer(app);
 const wsServer = SocketIO(httpServer); // socketIO 서버 생성
 wsServer.on("connection", backSocket => {
     // console.log(backSocket);
-    backSocket.on("enter_room", (msg, done)=>{
-        console.log(msg);
-        setTimeout(()=>{
-            done();
-        }, 10000);
-    })
+    backSocket.on("enter_room", (roomName, done)=>{ // 방 생성 또는 입장하면
+        backSocket.join(roomName);
+        done(); // 프론트에서 실행됨
+        backSocket.to(roomName).emit("welcome"); // 나를 제외한 참가한 방 안의 모든 사람에게 emit
+    });
+    backSocket.on("new_message", (msg, room, done)=>{
+        backSocket.to(room).emit("new_message", msg);
+        done();
+    });
+    backSocket.on("disconnecting", ()=>{ // 소켓 연결이 끊기면 모든 사람에게 emit
+        backSocket.rooms.forEach((room) => backSocket.to(room).emit("bye"));
+    });
 })
 // SocketIO Code End-----------------------------
 
