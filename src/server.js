@@ -22,8 +22,30 @@ const httpServer = http.createServer(app);
 
 // SocketIO Code Start-----------------------------
 const wsServer = SocketIO(httpServer); // socketIO 서버 생성
+
+function publicRooms(){ // 공개 방
+    // const sids = wsServer.sockets.adapter.sids;
+    // const rooms = wsServer.sockets.adapter.rooms;
+    const { // wsServer.sockets.adapter로 부터 sids와 rooms를 가져옴
+        sockets:{
+            adapter:{sids, rooms}, // rooms는 개인방, 공개방 다있고 sids는 개인방만 있음.
+        },
+    } = wsServer; // 위의 두줄과 같음
+    const publicRooms = [];
+    rooms.forEach((_, key) => { // rooms 키값 중에
+        if(sids.get(key) === undefined){ // sids에 없는 키값이
+            publicRooms.push(key); // 공개방 키값이다.
+        }
+    });
+    return publicRooms;
+}   
+
 wsServer.on("connection", (backSocket) => {
     backSocket["name"] = "Anonymous"; // 최초 연결 시 이름 초기화
+    backSocket.onAny((event) => {
+        console.log(wsServer.sockets.adapter);
+        console.log(`Socket Event: ${event}`);
+    });
     backSocket.on("enter_room", (roomName, userName, done)=>{ // 방 생성 또는 입장하면
         backSocket.join(roomName); //방에 접속
         backSocket["name"] = userName; // 이름을 소켓에 저장
