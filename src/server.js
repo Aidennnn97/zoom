@@ -22,19 +22,22 @@ const httpServer = http.createServer(app);
 
 // SocketIO Code Start-----------------------------
 const wsServer = SocketIO(httpServer); // socketIO 서버 생성
-wsServer.on("connection", backSocket => {
-    // console.log(backSocket);
-    backSocket.on("enter_room", (roomName, done)=>{ // 방 생성 또는 입장하면
-        backSocket.join(roomName);
+wsServer.on("connection", (backSocket) => {
+    backSocket["name"] = "Anonymous"; // 최초 연결 시 이름 초기화
+    backSocket.on("enter_room", (roomName, userName, done)=>{ // 방 생성 또는 입장하면
+        backSocket.join(roomName); //방에 접속
+        backSocket["name"] = userName; // 이름을 소켓에 저장
+        backSocket.to(roomName).emit("welcome", backSocket.name); // 나를 제외한 참가한 방 안의 모든 사람에게 emit, name데이터를 프론트 쪽으로 넘겨줌
         done(); // 프론트에서 실행됨
-        backSocket.to(roomName).emit("welcome"); // 나를 제외한 참가한 방 안의 모든 사람에게 emit
     });
-    backSocket.on("new_message", (msg, room, done)=>{
-        backSocket.to(room).emit("new_message", msg);
+    backSocket.on("new_message", (msg, room, done)=>{ // 새로운 메세지 발생 시 해당 방의 모든 사람에게 메세지 emit
+        backSocket.to(room).emit("new_message", `${backSocket.name}: ${msg}`);
         done();
     });
     backSocket.on("disconnecting", ()=>{ // 소켓 연결이 끊기면 모든 사람에게 emit
-        backSocket.rooms.forEach((room) => backSocket.to(room).emit("bye"));
+        backSocket.rooms.forEach((room) => {
+            backSocket.to(room).emit("bye", backSocket.name);
+        });
     });
 })
 // SocketIO Code End-----------------------------
