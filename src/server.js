@@ -2,7 +2,8 @@
 import http from "http";
 import express from "express";
 // import WebSocket from "ws";
-import SocketIO from "socket.io";
+import {Server} from "socket.io";
+import { instrument } from "@socket.io/admin-ui";
 
 const app = express();
 
@@ -21,7 +22,16 @@ const handleListen = () => console.log(`Listening on http://localhost:3000`);
 const httpServer = http.createServer(app);
 
 // SocketIO Code Start-----------------------------
-const wsServer = SocketIO(httpServer); // socketIO 서버 생성
+const wsServer = new Server(httpServer, {
+    cors: {
+        origin: ["https://admin.socket.io"], // 서버 URL
+        credentials: true
+    }
+}); // socketIO 서버 생성
+
+instrument(wsServer, {
+    auth: false
+});
 
 function publicRooms(){ // 공개 방
     // const sids = wsServer.sockets.adapter.sids;
