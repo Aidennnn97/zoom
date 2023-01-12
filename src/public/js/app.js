@@ -26,11 +26,15 @@ function handleMessageSubmit(event){ // 메세지 전송 함수
     input.value = "";
 }
 
-function showRoom(){
+function showRoom(roomUserCnt){
     welcome.hidden = true;
     room.hidden = false;
     const h3 = room.querySelector("h3");
-    h3.innerText = `Room ${roomName}`;
+    if(roomUserCnt === 1){
+        h3.innerText = `Room ${roomName}`;
+    }else{
+        h3.innerText = `Room ${roomName}(${roomUserCnt})`;
+    }
     const msgForm = room.querySelector("#msg");
     msgForm.addEventListener("submit", handleMessageSubmit);
 }
@@ -52,12 +56,30 @@ function handleRoomSubmit(event){ // 방 접속 함수
 
 form.addEventListener("submit", handleRoomSubmit);
 
-frontSocket.on("welcome", (user)=>{ // 새로운 유저 입장 
+frontSocket.on("welcome", (user, userCount)=>{ // 새로운 유저 입장 
+    const h3 = room.querySelector("h3");
+    h3.innerText = `Room ${roomName}(${userCount})`;
     addMessage(`${user}님이 입장하셨습니다.`);
 });
 
-frontSocket.on("bye", (user) => { // 유저 퇴장
+frontSocket.on("bye", (user, userCount) => { // 유저 퇴장
+    const h3 = room.querySelector("h3");
+    h3.innerText = `Room ${roomName}(${userCount})`;
     addMessage(`${user}님이 퇴장하셨습니다.`)
 })
 
 frontSocket.on("new_message", addMessage); //새 메세지 생성
+
+frontSocket.on("public_rooms", (rooms) => { // console.log === (msg) => console.log(msg);
+    console.log(rooms);
+    const roomList = welcome.querySelector("ul");
+    roomList.innerHTML = "";
+    // if(rooms.length === 0){ // 현재 생성된 방이 하나도 없을 때 방 목록을 비워줌
+    //     return;
+    // }
+    rooms.forEach((room)=>{
+        const li = document.createElement("li");
+        li.innerText = room;
+        roomList.append(li);
+    });
+}); 
