@@ -21,9 +21,14 @@ function handleMessageSubmit(event){ // 메세지 전송 함수
     const input = room.querySelector("#msg input"); // msg 폼의 Input
     const value = input.value;
     frontSocket.emit("new_message", input.value, roomName, ()=>{
-        addMessage(`You: ${value}`);
+        addMessage(`Me: ${value}`);
     });
     input.value = "";
+}
+
+function handleExit(event){
+    event.preventDefault();
+    window.location.reload();
 }
 
 function showRoom(roomUserCnt){
@@ -37,6 +42,11 @@ function showRoom(roomUserCnt){
     }
     const msgForm = room.querySelector("#msg");
     msgForm.addEventListener("submit", handleMessageSubmit);
+    const exit = room.querySelector("#exit");
+    exit.addEventListener("click", handleExit);
+    muteBtn.addEventListener("click", handleMuteClick);
+    cameraBtn.addEventListener("click", handleCameraClick);
+    getMedia(); // 유저 비디오 실행
 }
 
 function handleRoomSubmit(event){ // 방 접속 함수
@@ -83,3 +93,51 @@ frontSocket.on("public_rooms", (rooms) => { // console.log === (msg) => console.
         roomList.append(li);
     });
 }); 
+
+const myFace = document.getElementById("myFace");
+const muteBtn = document.getElementById("mute");
+const cameraBtn = document.getElementById("camera");
+
+let myStream; // 유저로부터 비디오와 오디오가 결합된것
+let muted = false;
+let cameraOff = false;
+
+async function getMedia(){
+    try {
+        myStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: true
+        });
+        myFace.srcObject = myStream;
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+function handleMuteClick(){
+    console.log(myStream.getAudioTracks());
+    myStream.getAudioTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+    });
+    if(!muted){
+        muteBtn.innerText = "UnMute";
+        muted = true;
+    } else{
+        muteBtn.innerText = "Mute";
+        muted = false;
+    }
+}
+
+function handleCameraClick(){
+    console.log(myStream.getVideoTracks());
+    myStream.getVideoTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+    });
+    if(cameraOff){
+        cameraBtn.innerText = "Camera Off";
+        cameraOff = false;
+    } else{
+        cameraBtn.innerText = "Camera On";
+        cameraOff = true;
+    }
+}
