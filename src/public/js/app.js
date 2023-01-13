@@ -40,13 +40,13 @@ function showRoom(roomUserCnt){
     }else{
         h3.innerText = `Room ${roomName}(${roomUserCnt})`;
     }
+    getMedia(); // 유저 비디오 실행
     const msgForm = room.querySelector("#msg");
     msgForm.addEventListener("submit", handleMessageSubmit);
     const exit = room.querySelector("#exit");
     exit.addEventListener("click", handleExit);
     muteBtn.addEventListener("click", handleMuteClick);
     cameraBtn.addEventListener("click", handleCameraClick);
-    getMedia(); // 유저 비디오 실행
 }
 
 function handleRoomSubmit(event){ // 방 접속 함수
@@ -80,7 +80,7 @@ frontSocket.on("bye", (user, userCount) => { // 유저 퇴장
 
 frontSocket.on("new_message", addMessage); //새 메세지 생성
 
-frontSocket.on("public_rooms", (rooms) => { // console.log === (msg) => console.log(msg);
+frontSocket.on("public_rooms", (rooms, userCount) => { // console.log === (msg) => console.log(msg);
     console.log(rooms);
     const roomList = welcome.querySelector("ul");
     roomList.innerHTML = "";
@@ -89,7 +89,7 @@ frontSocket.on("public_rooms", (rooms) => { // console.log === (msg) => console.
     // }
     rooms.forEach((room)=>{
         const li = document.createElement("li");
-        li.innerText = room;
+        li.innerText = `${room}(${userCount})`;
         roomList.append(li);
     });
 }); 

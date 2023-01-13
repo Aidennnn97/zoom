@@ -74,8 +74,8 @@ wsServer.on("connection", (backSocket) => {
         backSocket.join(roomName); //방에 접속
         backSocket["name"] = userName; // 이름을 소켓에 저장
         backSocket.to(roomName).emit("welcome", backSocket.name, countRoomUser(roomName)); // 나를 제외한 참가한 방 안의 모든 사람에게 emit, name데이터를 프론트 쪽으로 넘겨줌
-        wsServer.sockets.emit("public_rooms", publicRooms()); // 현재 서버에 생성된 공개방 리스트
         const roomUserCnt = wsServer.sockets.adapter.rooms.get(roomName)?.size;
+        wsServer.sockets.emit("public_rooms", publicRooms(), countRoomUser(roomName)); // 현재 서버에 생성된 공개방 리스트
         done(roomUserCnt); // 프론트에서 실행됨(showRoom)
     });
 
