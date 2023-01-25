@@ -62,6 +62,7 @@ function countRoomUser(roomName){ // 현재 방 사용자 수
     return wsServer.sockets.adapter.rooms.get(roomName)?.size;
 }
 
+// back-end에서 connection 받을 준비.
 wsServer.on("connection", (backSocket) => {
     backSocket["name"] = "Anonymous"; // 최초 연결 시 이름 초기화
 
@@ -84,13 +85,13 @@ wsServer.on("connection", (backSocket) => {
         done();
     });
 
-    backSocket.on("disconnecting", ()=>{ // 소켓 연결이 끊기면 모든 사람에게 emit, 소켓연결이 끊기기 바로 직전에 발생
+    backSocket.on("disconnecting", ()=>{ // 소켓 연결이 끊기면 모든 사람에게 emit, 소켓연결이 끊기기 바로 직전에 발생, 브라우저는 이미 닫았지만 아직 연결이 끊어지지 않은 그 찰나에 발생(room정보고 살아있음)
         backSocket.rooms.forEach((room) => {
             backSocket.to(room).emit("bye", backSocket.name, countRoomUser(room) - 1); // 소켓 연결이 끊기기 바로 직전에 발생하여 자신도 포함되기 때문에 -1 해줌
         });
     });
 
-    backSocket.on("disconnect", () => { // 소켓 연결 끊기고 나서
+    backSocket.on("disconnect", () => { // 소켓 연결 완전히 끊기고 나서(room정보가 비어있음)
         wsServer.sockets.emit("public_rooms", publicRooms());
     });
 

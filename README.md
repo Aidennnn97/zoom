@@ -35,6 +35,7 @@ Zoom Clone using NodeJS, WebRTC and Websockets.
  - WebSocket의 부가기능이 아님.
  - WebSocket 보다 높은 신뢰성, 빠른 속도, 탄력성이 뛰어나며 WebSocket은 SocketIO가 기능을 제공하는 방법중 하나이다.
  - WebSocket을 사용하지만 브라우저가 websocket을 지원하지 않으면 다른 것(Ex, HTTP long Polling)을 사용한다.
+ - 원하는 모든 것을 emit할 수 있고 원하는 만큼 백에 보낼 수 있지만, 프론트와 백을 통신할 때 socket.emit과 socket.on에는 같은 이름을 사용해야 한다.
 
 ## Adapter
  - 서버들 사이에 실시간 어플리케이션을 동기화 하는 역할.
