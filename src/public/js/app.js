@@ -5,20 +5,18 @@ const welcome = document.getElementById("welcome");
 const form = welcome.querySelector("form"); // 방 생성 폼
 const room = document.getElementById("room");
 
-room.hidden = true;
+room.hidden = true; // 방 숨김.
 
 let roomName;
 
-function addMessage(message) {
-  // 메세지 만들어주는 함수
+function addMessage(message) { // 메세지 만들어주는 함수
   const ul = room.querySelector("ul");
   const li = document.createElement("li");
   li.innerText = message;
   ul.appendChild(li);
 }
 
-function handleMessageSubmit(event) {
-  // 메세지 전송 함수
+function handleMessageSubmit(event) { // 메세지 전송 함수
   event.preventDefault();
   const input = room.querySelector("#msg input"); // msg 폼의 Input
   const value = input.value;
@@ -33,7 +31,7 @@ function handleExit(event) {
   window.location.reload();
 }
 
-function showRoom(roomUserCnt) {
+async function showRoom(roomUserCnt) {
   welcome.hidden = true;
   room.hidden = false;
   const h3 = room.querySelector("h3");
@@ -48,20 +46,18 @@ function showRoom(roomUserCnt) {
   const exit = room.querySelector("#exit");
   exit.addEventListener("click", handleExit);
 
-  getMedia(); // 유저 비디오 실행
+  await getMedia(); // 유저 비디오 실행
+  makeConnection();
   muteBtn.addEventListener("click", handleMuteClick);
   cameraBtn.addEventListener("click", handleCameraClick);
   camerasSelect.addEventListener("input", handleCameraChange);
-
 }
 
-function handleRoomSubmit(event) {
-  // 방 접속 함수
+function handleRoomSubmit(event) { // 방 접속 함수
   event.preventDefault();
   const nameInput = form.querySelector("#name");
   const roomInput = form.querySelector("#roomname");
-  frontSocket.emit(
-    // emit(event이름의 text, args, callback), 끝날 때  실행되는 함수를 보고 싶으면 마지막에 넣어야함
+  frontSocket.emit( // emit(event이름의 text, args, callback), 끝날 때  실행되는 함수를 보고 싶으면 마지막에 넣어야함
     "enter_room",
     roomInput.value, // 방이름
     nameInput.value, // 유저이름
@@ -74,8 +70,7 @@ function handleRoomSubmit(event) {
 
 form.addEventListener("submit", handleRoomSubmit);
 
-frontSocket.on("welcome", (user, userCount) => {
-  // 새로운 유저 입장
+frontSocket.on("welcome", (user, userCount) => { // 새로운 유저 입장
   const h3 = room.querySelector("h3");
   h3.innerText = `Room ${roomName}(${userCount})`;
   addMessage(`${user}님이 입장하셨습니다.`);
@@ -113,6 +108,7 @@ const camerasSelect = document.getElementById("cameras");
 let myStream; // 유저로부터 비디오와 오디오가 결합된것
 let muted = false;
 let cameraOff = false;
+let myPeerConnection;
 
 async function getCameras(){
   try {
@@ -186,4 +182,10 @@ function handleCameraClick() {
 
 async function handleCameraChange(){
   await getMedia(camerasSelect.value);
+}
+
+// RTC Code
+function makeConnection(){ // PeerToPeer
+  myPeerConnection = new RTCPeerConnection(); // 양쪽 브라우저에 peer-to-peer 연결 생성
+  myStream.getTracks().forEach((track)=>myPeerConnection.addTrack(track, myStream)); // 양쪽 브라우저로 부터 카메라와 마이크의 데이터 Stream을 받아 연결에 집어넣음.
 }
