@@ -42,13 +42,17 @@ function showRoom(roomUserCnt) {
   } else {
     h3.innerText = `Room ${roomName}(${roomUserCnt})`;
   }
-  getMedia(); // 유저 비디오 실행
+  
   const msgForm = room.querySelector("#msg");
   msgForm.addEventListener("submit", handleMessageSubmit);
   const exit = room.querySelector("#exit");
   exit.addEventListener("click", handleExit);
+
+  getMedia(); // 유저 비디오 실행
   muteBtn.addEventListener("click", handleMuteClick);
   cameraBtn.addEventListener("click", handleCameraClick);
+  camerasSelect.addEventListener("input", handleCameraChange);
+
 }
 
 function handleRoomSubmit(event) {
@@ -104,18 +108,49 @@ frontSocket.on("public_rooms", (rooms, userCount) => {
 const myFace = document.getElementById("myFace");
 const muteBtn = document.getElementById("mute");
 const cameraBtn = document.getElementById("camera");
+const camerasSelect = document.getElementById("cameras");
 
 let myStream; // 유저로부터 비디오와 오디오가 결합된것
 let muted = false;
 let cameraOff = false;
 
-async function getMedia() {
+async function getCameras(){
   try {
-    myStream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: true,
-    });
+    const devices = await navigator.mediaDevices.enumerateDevices(); // 모든 장치 정보
+    console.log(devices);
+    const cameras = devices.filter((device)=>device.kind === "videoinput"); // 카메라만
+    const currentCamera = myStream.getVideoTracks()[0];
+    cameras.forEach((camera)=>{
+      const option = document.createElement("option");
+      option.value = camera.deviceId;
+      option.innerText = camera.label;
+      if(currentCamera.label === camera.label){
+        option.selected = true;
+      }
+      camerasSelect.appendChild(option);
+    })
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+async function getMedia(deviceId) { // 유저 미디어 가져오는 함수, deviceId 인자를 받을 수 있음
+  const initialDeviceId = {
+    audio: true,
+    video: {facingMode: "user"}, // 모바일일 경우 셀카 모드, facingMode: {exact: "environment"}(후면카메라)
+  };
+  const cameraDeviceId = {
+    audio: true,
+    video: {deviceId: {exact: deviceId}},
+  }
+  try {
+    myStream = await navigator.mediaDevices.getUserMedia(
+      deviceId ? cameraDeviceId : initialDeviceId
+    );
     myFace.srcObject = myStream;
+    if(!deviceId){
+      await getCameras();
+    }
   } catch (error) {
     console.log(error);
   }
@@ -147,4 +182,8 @@ function handleCameraClick() {
     cameraBtn.innerText = "Camera On";
     cameraOff = true;
   }
+}
+
+async function handleCameraChange(){
+  await getMedia(camerasSelect.value);
 }

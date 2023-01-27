@@ -40,3 +40,7 @@ Zoom Clone using NodeJS, WebRTC and Websockets.
 ## Adapter
  - 서버들 사이에 실시간 어플리케이션을 동기화 하는 역할.
  - 누가 연결되었는지, 현재 방이 얼마나 생성되었는지 알려줌.
+
+## WebRTC(Web Real-Time Communication)
+ - Peer-to-Peer: 내 브라우저가 직접 상대방 브라우저에 연결되어 영상, 오디오, 텍스트와 같은 데이터가 서버를 거치지 않고 전달됨.
+ - 하지만 상대방과 연결을 하기 위해서는 상대방의 IP주소와같은 정보가 필요하고 얻기위해 서버를 사용해야한다.
