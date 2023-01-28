@@ -5,9 +5,10 @@ const welcome = document.getElementById("welcome");
 const form = welcome.querySelector("form"); // 방 생성 폼
 const room = document.getElementById("room");
 
-room.hidden = true; // 방 숨김.
+room.style.display = 'none'; // 방 숨김.
 
 let roomName;
+let myNickname;
 
 function addMessage(message) { // 메세지 만들어주는 함수
   const ul = room.querySelector("ul");
@@ -31,18 +32,18 @@ function handleExit(event) {
   window.location.reload();
 }
 
-async function showRoom(roomUserCnt) {
-  welcome.hidden = true;
-  room.hidden = false;
+async function showRoom() {
+  welcome.style.display = 'none';
+  room.style.display = 'flex';
+
   const h3 = room.querySelector("h3");
-  if (roomUserCnt === 1) {
-    h3.innerText = `Room ${roomName}`;
-  } else {
-    h3.innerText = `Room ${roomName}(${roomUserCnt})`;
-  }
-  
+  h3.innerText = `Room ${roomName}`;
+
+  document.querySelector("#myNickname").innerText = myNickname;
+
   const msgForm = room.querySelector("#msg");
   msgForm.addEventListener("submit", handleMessageSubmit);
+
   const exit = room.querySelector("#exit");
   exit.addEventListener("click", handleExit);
 
@@ -53,52 +54,58 @@ async function showRoom(roomUserCnt) {
   camerasSelect.addEventListener("input", handleCameraChange);
 }
 
-function handleRoomSubmit(event) { // 방 접속 함수
+async function handleRoomSubmit(event) { // 방 접속 함수
   event.preventDefault();
-  const nameInput = form.querySelector("#name");
+  const nicknameInput = form.querySelector("#nickname");
   const roomInput = form.querySelector("#roomname");
-  frontSocket.emit( // emit(event이름의 text, args, callback), 끝날 때  실행되는 함수를 보고 싶으면 마지막에 넣어야함
-    "enter_room",
-    roomInput.value, // 방이름
-    nameInput.value, // 유저이름
-    showRoom // 방 생성 함수
-  );
+  myNickname = nicknameInput.value;
   roomName = roomInput.value;
+  await showRoom(); // 방 생성
+  frontSocket.emit( // emit(event이름의 text, args, callback), 끝날 때  실행되는 함수를 보고 싶으면 마지막에 넣어야함
+    "join_room",
+    roomInput.value, // 방이름
+    nicknameInput.value, // 유저이름
+  );
+  
   roomInput.value = "";
-  nameInput.value = "";
+  nicknameInput.value = "";
 }
 
 form.addEventListener("submit", handleRoomSubmit);
 
-frontSocket.on("welcome", (user, userCount) => { // 새로운 유저 입장
-  const h3 = room.querySelector("h3");
-  h3.innerText = `Room ${roomName}(${userCount})`;
-  addMessage(`${user}님이 입장하셨습니다.`);
+frontSocket.on("welcome", async (userNickname) => { // 새로운 유저 입장시 나의 브라우저에서 실행됨
+  addMessage(`${userNickname}님이 입장하셨습니다.`);
+
+  const offer = await myPeerConnection.createOffer(); // 상대방이 참가할 수 있도록 초대장을 만드는 역할, 이것으로 연결을 구성해야함, createOffer()
+  myPeerConnection.setLocalDescription(offer); // setLocalDescription()
+  console.log("send the offer");
+  frontSocket.emit("offer", offer, roomName); // 서버에 어떤 방이 이 Offer를 emit할 건지, 누구한테로 이 Offer를 보낼건지 알려주면 서버가 상대방에게 보냄
 });
 
-frontSocket.on("bye", (user, userCount) => {
-  // 유저 퇴장
-  const h3 = room.querySelector("h3");
-  h3.innerText = `Room ${roomName}(${userCount})`;
-  addMessage(`${user}님이 퇴장하셨습니다.`);
+frontSocket.on("offer", async (offer) => { // 상대방이 오퍼를 받음
+  console.log("receive the offer");
+  myPeerConnection.setRemoteDescription(offer);
+  const answer = await myPeerConnection.createAnswer(); // 나에게 답을 보냄
+  myPeerConnection.setLocalDescription(answer);
+  frontSocket.emit("answer", answer, roomName);
+  console.log("send the answer");
+});
+
+frontSocket.on("answer", (answer) => {
+  console.log("receive the answer");
+  myPeerConnection.setRemoteDescription(answer);
+});
+
+frontSocket.on("ice", (ice) => {
+  console.log("send candidate");
+  myPeerConnection.addIceCandidate(ice);
+})
+
+frontSocket.on("bye", (userNickname) => { // 유저 퇴장
+  addMessage(`${userNickname}님이 퇴장하셨습니다.`);
 });
 
 frontSocket.on("new_message", addMessage); //새 메세지 생성
-
-frontSocket.on("public_rooms", (rooms, userCount) => {
-  // console.log === (msg) => console.log(msg);
-  console.log(rooms);
-  const roomList = welcome.querySelector("ul");
-  roomList.innerHTML = "";
-  // if(rooms.length === 0){ // 현재 생성된 방이 하나도 없을 때 방 목록을 비워줌
-  //     return;
-  // }
-  rooms.forEach((room) => {
-    const li = document.createElement("li");
-    li.innerText = `${room}(${userCount})`;
-    roomList.append(li);
-  });
-});
 
 const myFace = document.getElementById("myFace");
 const muteBtn = document.getElementById("mute");
@@ -113,7 +120,6 @@ let myPeerConnection;
 async function getCameras(){
   try {
     const devices = await navigator.mediaDevices.enumerateDevices(); // 모든 장치 정보
-    console.log(devices);
     const cameras = devices.filter((device)=>device.kind === "videoinput"); // 카메라만
     const currentCamera = myStream.getVideoTracks()[0];
     cameras.forEach((camera)=>{
@@ -130,7 +136,7 @@ async function getCameras(){
   }
 }
 
-async function getMedia(deviceId) { // 유저 미디어 가져오는 함수, deviceId 인자를 받을 수 있음
+async function getMedia(deviceId) { // getUserMedia(), deviceId 인자를 받을 수 있음
   const initialDeviceId = {
     audio: true,
     video: {facingMode: "user"}, // 모바일일 경우 셀카 모드, facingMode: {exact: "environment"}(후면카메라)
@@ -153,7 +159,6 @@ async function getMedia(deviceId) { // 유저 미디어 가져오는 함수, dev
 }
 
 function handleMuteClick() {
-  console.log(myStream.getAudioTracks());
   myStream.getAudioTracks().forEach((track) => {
     track.enabled = !track.enabled;
   });
@@ -167,7 +172,6 @@ function handleMuteClick() {
 }
 
 function handleCameraClick() {
-  console.log(myStream.getVideoTracks());
   myStream.getVideoTracks().forEach((track) => {
     track.enabled = !track.enabled;
   });
@@ -184,8 +188,19 @@ async function handleCameraChange(){
   await getMedia(camerasSelect.value);
 }
 
-// RTC Code
 function makeConnection(){ // PeerToPeer
   myPeerConnection = new RTCPeerConnection(); // 양쪽 브라우저에 peer-to-peer 연결 생성
-  myStream.getTracks().forEach((track)=>myPeerConnection.addTrack(track, myStream)); // 양쪽 브라우저로 부터 카메라와 마이크의 데이터 Stream을 받아 연결에 집어넣음.
+  myPeerConnection.addEventListener("icecandidate", handleIce);
+  myPeerConnection.addEventListener("addstream", handleAddStream);
+  myStream.getTracks().forEach((track)=>myPeerConnection.addTrack(track, myStream)); // 양쪽 브라우저로 부터 카메라와 마이크의 데이터 Stream을 받아 연결에 집어넣음, addStream()
+}
+
+function handleIce(data){
+  console.log("send candidate");
+  frontSocket.emit("ice", data.candidate, roomName);
+}
+
+function handleAddStream(data){ // 상대방 미디어 추가
+  const peerFace = document.getElementById("peerFace");
+  peerFace.srcObject = data.stream;
 }

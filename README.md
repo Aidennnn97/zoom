@@ -45,3 +45,7 @@ Zoom Clone using NodeJS, WebRTC and Websockets.
  - Peer-to-Peer: 내 브라우저가 직접 상대방 브라우저에 연결되어 영상, 오디오, 텍스트와 같은 데이터가 서버를 거치지 않고 전달됨.
  - 하지만 상대방과 연결을 하기 위해서는 상대방의 IP주소와같은 정보가 필요하고 얻기위해 서버를 사용해야한다.
   ![그림1](/src/public/img/webRTC.png)
+ -  RTCIceCandidate(Internet Connectivity Establishment)
+    -  webRTC에 필요한 프로토콜
+    -  멀리 떨어진 장치와 소통할 수 있게 하기 위함
+    -  즉, 브라우저가 서로 소통할 수 있게 해주는 방법
