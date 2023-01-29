@@ -49,3 +49,5 @@ Zoom Clone using NodeJS, WebRTC and Websockets.
     -  webRTC에 필요한 프로토콜
     -  멀리 떨어진 장치와 소통할 수 있게 하기 위함
     -  즉, 브라우저가 서로 소통할 수 있게 해주는 방법
+ -  STUN Server
+    -  모바일과 컴퓨터가 같은 wifi환경이 아닐 때 서로를 찾기위한 공용 IP 주소를 알려준다.

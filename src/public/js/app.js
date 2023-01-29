@@ -1,121 +1,326 @@
 // FrontEnd
-const frontSocket = io(); // io는 자동적으로 back-end socket과 연결해주는 function.
-
 const welcome = document.getElementById("welcome");
-const form = welcome.querySelector("form"); // 방 생성 폼
+const welcomeForm = welcome.querySelector("form"); // 방 생성 폼
+const welcomeAlert = welcome.querySelector("#alert");
+const welcomeAlertMsg = welcomeAlert.querySelector("span");
 const room = document.getElementById("room");
+const roomContent = room.querySelector("#room-content");
+const myVideo = roomContent.querySelector('#myVideo');
+const peerVideo = roomContent.querySelector('#peerVideo');
+const chatBox = roomContent.querySelector('#chat-wrapper');
+const muteBtn = roomContent.querySelector('#control button#mute');
+const cameraSelect = roomContent.querySelector('#camera-selection');
+const cameraBtn = roomContent.querySelector('#control button#camera');
+const hangUpBtn = roomContent.querySelector('#control button#hang-up');
+const chatBtn = roomContent.querySelector('#control button#chat-button');
+const chatList = chatBox.querySelector('#chat-content-wrapper ul');
+const chatTextArea = chatBox.querySelector('form#chat-input textarea');
 
-room.style.display = 'none'; // 방 숨김.
-
+// 전역변수
 let roomName;
 let myNickname;
+let peerNickname;
+let myStream;
+let muted = false;
+let cameraOff = false;
+let myPeerConnection;
+let myDataChannel;
+let frontSocket = createNewSocket();
 
-function addMessage(message) { // 메세지 만들어주는 함수
-  const ul = room.querySelector("ul");
-  const li = document.createElement("li");
-  li.innerText = message;
-  ul.appendChild(li);
+// 방 입장 요청 시간
+const waitApprovalObj = {
+  interval: null,
+  counter: 0,
 }
 
-function handleMessageSubmit(event) { // 메세지 전송 함수
-  event.preventDefault();
-  const input = room.querySelector("#msg input"); // msg 폼의 Input
-  const value = input.value;
-  frontSocket.emit("new_message", input.value, roomName, () => {
-    addMessage(`Me: ${value}`);
+function createNewSocket(){
+  const newSocket = io(); // io는 자동적으로 back-end socket과 연결해줌
+
+  // 방입장
+  newSocket.on("join_room", (nickname, socketId) => {
+    // 게스트 닉네임 저장
+    peerNickname = nickname;
+
+    // 승인요청 모달
+    const joinModalWrapper = room.querySelector("#confirm-join-overlay");
+    const joinModal = joinModalWrapper.querySelector("#confirm-join");
+    joinModalWrapper.style.display = 'flex';
+    joinModal.style.display = 'flex';
+    joinModal.querySelector("#request-nickname").innerHTML = `<strong>${nickname}</strong> &nbsp wants to join the call`;
+    waitApprovalObj.counter = 30;
+    waitApprovalObj.interval = setInterval(() => {
+      // 승인요청 모달 메세지
+      const modalMsg = joinModal.querySelector("#confirm-message");
+      modalMsg.innerText = `Will you approve the user to join the chat? (${waitApprovalObj.counter})`;
+  
+      if(waitApprovalObj.counter !== 0){
+        --waitApprovalObj.counter;
+      } else{
+        clearInterval(waitApprovalObj.interval);
+        joinModalWrapper.style.display = 'none';
+        joinModal.style.display = 'none';
+      }
+    }, 1000);
+  
+    // 게스트 요청 승인버튼
+    const approveBtn = joinModal.querySelector("#approve");
+    approveBtn.addEventListener("click", () => {
+      // 게스트 요청 승인
+      newSocket.emit("approve", roomName, myNickname, socketId);
+
+      joinModalWrapper.style.display = 'none';
+      joinModal.style.display = 'none';
+      clearInterval(waitApprovalObj.interval);
+
+      // 상대방 별명
+      roomContent.querySelector("#peerNickname").innerText = peerNickname;
+    });
+  
+    // 거부버튼
+    const declineBtn = joinModal.querySelector("#decline");
+    declineBtn.addEventListener("click", () => {
+      // 요청 거절
+      newSocket.emit("decline", socketId);
+
+      joinModalWrapper.style.display = 'none';
+      joinModal.style.display = 'none';
+    });
   });
-  input.value = "";
+
+  // 게스트의 요청이 승인 됐을 때
+  newSocket.on("approved", async (ownerNickname) => {
+    clearInterval(waitApprovalObj.interval);
+    await showRoom();
+    peerNickname = ownerNickname;
+    roomContent.querySelector("#peerNickname").innerText = ownerNickname;
+  });
+  
+  // 게스트의 요청이 거절 됐을 때
+  newSocket.on("declined", () => {
+    clearInterval(waitApprovalObj.interval);
+    welcomeAlertMsg.innerText = `Declined to join the room! Try Again!`;
+    const formElements = welcomeForm.elements;
+    for(let i = 0; i < formElements.length; i++){
+      formElements[i].disabled = false;
+    }
+  });
+
+  newSocket.on("welcome", async () => { // 새로운 유저 입장시 나의 브라우저에서 실행됨
+    myDataChannel = myPeerConnection.createDataChannel("chat"); // chat 이라는 데이터채널 생성
+    myDataChannel.addEventListener("message", (message) => {
+      addMessage("peer-chat", message.data);
+    });
+  
+    const offer = await myPeerConnection.createOffer(); // 상대방이 참가할 수 있도록 초대장을 만드는 역할, 이것으로 연결을 구성해야함, createOffer()
+    myPeerConnection.setLocalDescription(offer); // setLocalDescription()
+    newSocket.emit("offer", offer, roomName); // 서버에 어떤 방이 이 Offer를 emit할 건지, 누구한테로 이 Offer를 보낼건지 알려주면 서버가 상대방에게 보냄
+  });
+
+  newSocket.on("offer", async (offer) => { // 상대방이 오퍼를 받음
+    myPeerConnection.addEventListener("datachannel", (e) =>{
+      myDataChannel = e.channel;
+      myDataChannel.addEventListener("message", (message) => {
+        addMessage("peer-chat", message.data);
+      });
+    });
+
+    await myPeerConnection.setRemoteDescription(offer);
+
+    const answer = await myPeerConnection.createAnswer(); // 나에게 답을 보냄
+    myPeerConnection.setLocalDescription(answer);
+    newSocket.emit("answer", answer, roomName);
+  });
+
+  newSocket.on("answer", (answer) => {
+    myPeerConnection.setRemoteDescription(answer);
+  });
+  
+  newSocket.on("ice", (ice) => {
+    myPeerConnection.addIceCandidate(ice);
+  });
+
+  // 오너 혹은 게스트가 종료했을 때
+  newSocket.on("peer-leaving", () => {
+    peerNickname = '';
+    roomContent.querySelector("#peerNickname").innerText = peerNickname;
+    peerVideo.srcObject.getTracks().forEach((track) => {
+      track.stop();
+    });
+    peerVideo.srcObject = null;
+    chatList.innerHTML = '';
+  
+    // 종료 모달
+    const modalWrapper = room.querySelector("#disconnected-peer-overlay");
+    const disconnectedPeer = modalWrapper.querySelector("#disconnected-peer");
+    modalWrapper.style.display = 'flex';
+    disconnectedPeer.style.display = 'flex';
+  
+    // 종료 버튼
+    const leaveBtn = disconnectedPeer.querySelector("#leave-room");
+    leaveBtn.addEventListener("click", () => {
+      modalWrapper.style.display = 'none';
+      disconnectedPeer.style.display = 'none';
+      hangUp();
+    });
+
+    // 머무르기 버튼
+    const stayBtn = disconnectedPeer.querySelector("#stay-room");
+    stayBtn.addEventListener("click", async () => {
+      await myPeerConnection.close();
+      myPeerConnection = undefined;
+      makeConnection();
+  
+      modalWrapper.style.display = 'none';
+      disconnectedPeer.style.display = 'none';
+    });
+  });
+
+  return newSocket;
 }
 
-function handleExit(event) {
-  event.preventDefault();
-  window.location.reload();
+function reset(){
+  clearInterval(waitApprovalObj.interval);
+
+  const formElements = welcomeForm.elements;
+  for (let index = 0; index < formElements.length; index++) {
+    formElements[index].disabled = false;
+  }
+
+  welcomeAlertMsg.innerText = '';
+  welcomeAlert.style.display = 'none';
+
+  welcome.style.display = 'flex';
+  room.style.display = 'none';
+  chatBox.style.display = 'none';
+}
+
+function addMessage(chatType, message) { // 메세지 만들어주는 함수
+  const listElem = document.createElement('li');
+  const divSpacer = document.createElement('div');
+  const divSpanWrapper = document.createElement('div');
+  const span = document.createElement('span');
+
+  listElem.classList.add(chatType);
+  divSpacer.classList.add('chat-spacer');
+  divSpanWrapper.classList.add('chat-span-wrapper');
+
+  // 메세지 생성
+  span.innerText = message;
+  divSpanWrapper.appendChild(span);
+  listElem.appendChild(divSpacer);
+  listElem.appendChild(divSpanWrapper);
+  chatList.appendChild(listElem);
+
+  chatBox.style.display = 'flex';
 }
 
 async function showRoom() {
   welcome.style.display = 'none';
   room.style.display = 'flex';
-
-  const h3 = room.querySelector("h3");
-  h3.innerText = `Room ${roomName}`;
-
-  document.querySelector("#myNickname").innerText = myNickname;
-
-  const msgForm = room.querySelector("#msg");
-  msgForm.addEventListener("submit", handleMessageSubmit);
-
-  const exit = room.querySelector("#exit");
-  exit.addEventListener("click", handleExit);
+  roomContent.querySelector("#myNickname").innerText = myNickname;
 
   await getMedia(); // 유저 비디오 실행
-  makeConnection();
-  muteBtn.addEventListener("click", handleMuteClick);
-  cameraBtn.addEventListener("click", handleCameraClick);
-  camerasSelect.addEventListener("input", handleCameraChange);
+
+  makeConnection(); // webRTC Connection 생성
 }
 
 async function handleRoomSubmit(event) { // 방 접속 함수
   event.preventDefault();
-  const nicknameInput = form.querySelector("#nickname");
-  const roomInput = form.querySelector("#roomname");
-  myNickname = nicknameInput.value;
-  roomName = roomInput.value;
-  await showRoom(); // 방 생성
-  frontSocket.emit( // emit(event이름의 text, args, callback), 끝날 때  실행되는 함수를 보고 싶으면 마지막에 넣어야함
-    "join_room",
-    roomInput.value, // 방이름
-    nicknameInput.value, // 유저이름
-  );
+
+  welcomeAlert.style.display = 'none';
+
+  myNickname = welcomeForm.querySelector("#nickname").value;
+  roomName = welcomeForm.querySelector("#roomname").value;
   
-  roomInput.value = "";
-  nicknameInput.value = "";
+  frontSocket.emit("join_room", roomName, myNickname, async (status) => {
+    switch(status){
+      case 'create_room':
+        await showRoom();
+        roomName = "";
+        myNickname = "";
+        break;
+      case 'wait_approval':
+        const formElements = welcomeForm.elements;
+        for(let i = 0; i < formElements.length; i++){
+          formElements[i].disabled = true;
+        }
+
+        welcomeAlert.style.display = 'block';
+        waitApprovalObj.counter = 30;
+        waitApprovalObj.interval = setInterval(() => {
+          welcomeAlertMsg.innerText = `Waiting for Approval (${waitApprovalObj.counter})`;
+          
+          if(waitApprovalObj.counter !== 0){
+            --waitApprovalObj.counter;
+          } else{
+            clearInterval(waitApprovalObj.interval);
+            for (let index = 0; index < formElements.length; index++) {
+              formElements[index].disabled = false;
+            }
+            welcomeAlertMsg.innerText = `Not Approved Yet! Try Again!`;
+          }
+        }, 1000);
+        break;
+      case 'exceed_max_capacity':
+        welcomeAlert.style.display = 'block';
+        welcomeAlertMsg.innerText = 'The room is packed!';
+        break;
+    }
+  });
 }
 
-form.addEventListener("submit", handleRoomSubmit);
+welcomeForm.addEventListener("submit", handleRoomSubmit);
+muteBtn.addEventListener("click", handleMuteClick);
+cameraBtn.addEventListener("click", handleCameraClick);
+cameraSelect.addEventListener("input", handleCameraChange);
+hangUpBtn.addEventListener("click", hangUp);
+chatBtn.addEventListener('click', () => {
+  if (chatBox.style.display === 'none') {
+    chatBox.style.display = 'flex';
+  } else {
+    chatBox.style.display = 'none';
+  }
+});
+chatTextArea.addEventListener('keydown', (keyboardEvent) => {
+  if (keyboardEvent.key === 'Enter') {
+    keyboardEvent.preventDefault();
+    const msg = chatTextArea.value;
 
-frontSocket.on("welcome", async (userNickname) => { // 새로운 유저 입장시 나의 브라우저에서 실행됨
-  addMessage(`${userNickname}님이 입장하셨습니다.`);
-
-  const offer = await myPeerConnection.createOffer(); // 상대방이 참가할 수 있도록 초대장을 만드는 역할, 이것으로 연결을 구성해야함, createOffer()
-  myPeerConnection.setLocalDescription(offer); // setLocalDescription()
-  console.log("send the offer");
-  frontSocket.emit("offer", offer, roomName); // 서버에 어떤 방이 이 Offer를 emit할 건지, 누구한테로 이 Offer를 보낼건지 알려주면 서버가 상대방에게 보냄
+    myDataChannel?.send(msg);
+    addMessage('my-chat', msg);
+    chatTextArea.value = '';
+  }
 });
 
-frontSocket.on("offer", async (offer) => { // 상대방이 오퍼를 받음
-  console.log("receive the offer");
-  myPeerConnection.setRemoteDescription(offer);
-  const answer = await myPeerConnection.createAnswer(); // 나에게 답을 보냄
-  myPeerConnection.setLocalDescription(answer);
-  frontSocket.emit("answer", answer, roomName);
-  console.log("send the answer");
-});
+function hangUp(){
+  myPeerConnection.close();
+  myPeerConnection = null;
+  myDataChannel = null;
+  myNickname = '';
+  peerNickname = '';
+  chatList.innerHTML = '';
+  roomContent.querySelector("#myNickname").innerText = myNickname;
+  roomContent.querySelector("#peerNickname").innerText = peerNickname;
 
-frontSocket.on("answer", (answer) => {
-  console.log("receive the answer");
-  myPeerConnection.setRemoteDescription(answer);
-});
+  myStream.getTracks().forEach((track) => {
+    track.stop();
+  });
 
-frontSocket.on("ice", (ice) => {
-  console.log("send candidate");
-  myPeerConnection.addIceCandidate(ice);
-})
+  if(peerVideo?.srcObject){
+    peerVideo.srcObject.getTracks().forEach((track) => {
+      track.stop();
+    });
+    peerVideo.srcObject = null;
+  }
 
-frontSocket.on("bye", (userNickname) => { // 유저 퇴장
-  addMessage(`${userNickname}님이 퇴장하셨습니다.`);
-});
+  frontSocket.emit("leaveRoom", roomName, () => {
+    roomName = '';
+    frontSocket.disconnect();
+    frontSocket = createNewSocket();
+    reset();
+  });
+}
 
-frontSocket.on("new_message", addMessage); //새 메세지 생성
-
-const myFace = document.getElementById("myFace");
-const muteBtn = document.getElementById("mute");
-const cameraBtn = document.getElementById("camera");
-const camerasSelect = document.getElementById("cameras");
-
-let myStream; // 유저로부터 비디오와 오디오가 결합된것
-let muted = false;
-let cameraOff = false;
-let myPeerConnection;
 
 async function getCameras(){
   try {
@@ -129,7 +334,7 @@ async function getCameras(){
       if(currentCamera.label === camera.label){
         option.selected = true;
       }
-      camerasSelect.appendChild(option);
+      cameraSelect.appendChild(option);
     })
   } catch (error) {
     console.log(error);
@@ -137,6 +342,13 @@ async function getCameras(){
 }
 
 async function getMedia(deviceId) { // getUserMedia(), deviceId 인자를 받을 수 있음
+  // 현재 스트림이 존재할 때
+  if(myStream) {
+    myStream.getTracks().forEach((track) => {
+      track.stop();
+    })
+  }
+
   const initialDeviceId = {
     audio: true,
     video: {facingMode: "user"}, // 모바일일 경우 셀카 모드, facingMode: {exact: "environment"}(후면카메라)
@@ -149,7 +361,7 @@ async function getMedia(deviceId) { // getUserMedia(), deviceId 인자를 받을
     myStream = await navigator.mediaDevices.getUserMedia(
       deviceId ? cameraDeviceId : initialDeviceId
     );
-    myFace.srcObject = myStream;
+    myVideo.srcObject = myStream;
     if(!deviceId){
       await getCameras();
     }
@@ -185,22 +397,39 @@ function handleCameraClick() {
 }
 
 async function handleCameraChange(){
-  await getMedia(camerasSelect.value);
+  await getMedia(cameraSelect.value);
+  if(myPeerConnection){
+    const videoTrack = myStream.getVideoTracks()[0];
+    const videoSender = myPeerConnection.getSenders().find((sender) => sender.track.kind === "video");
+    videoSender.replaceTrack(videoTrack);
+  }
 }
 
-function makeConnection(){ // PeerToPeer
-  myPeerConnection = new RTCPeerConnection(); // 양쪽 브라우저에 peer-to-peer 연결 생성
-  myPeerConnection.addEventListener("icecandidate", handleIce);
-  myPeerConnection.addEventListener("addstream", handleAddStream);
-  myStream.getTracks().forEach((track)=>myPeerConnection.addTrack(track, myStream)); // 양쪽 브라우저로 부터 카메라와 마이크의 데이터 Stream을 받아 연결에 집어넣음, addStream()
+function makeConnection(){ // PeerToPeer, 양쪽 브라우저에 peer-to-peer 연결 생성
+  myPeerConnection = new RTCPeerConnection({ 
+    iceServers: [
+      {
+        urls: [ // STUN SERVER
+          'stun:stun1.l.google.com:19302',
+          'stun:stun2.l.google.com:19302',
+          'stun:stun3.l.google.com:19302',
+          'stun:stun4.l.google.com:19302',
+        ],
+      },
+    ],
+  }); 
+
+  myPeerConnection.addEventListener("icecandidate", (e) => {
+    frontSocket.emit("ice", e.candidate, roomName);
+  });
+
+  myPeerConnection.addEventListener("track", (e) => { // 상대방 미디어 추가
+    peerVideo.srcObject = e.streams[0];
+  });
+
+  myStream.getTracks().forEach((track) => {
+    myPeerConnection.addTrack(track, myStream);
+  }); // 양쪽 브라우저로 부터 카메라와 마이크의 데이터 Stream을 받아 연결에 집어넣음, addStream()
 }
 
-function handleIce(data){
-  console.log("send candidate");
-  frontSocket.emit("ice", data.candidate, roomName);
-}
-
-function handleAddStream(data){ // 상대방 미디어 추가
-  const peerFace = document.getElementById("peerFace");
-  peerFace.srcObject = data.stream;
-}
+reset();
