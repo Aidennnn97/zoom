@@ -88,7 +88,6 @@ body {
 #welcome form div input {
   flex-basis: 7rem;
   flex-grow: 1;
-  border: 1px solid black;
 }
 
 #welcome form button {

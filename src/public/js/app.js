@@ -93,6 +93,7 @@ function createNewSocket(){
     await showRoom();
     peerNickname = ownerNickname;
     roomContent.querySelector("#peerNickname").innerText = ownerNickname;
+    newSocket.emit("hello", roomName); // 방장에게 알림
   });
   
   // 게스트의 요청이 거절 됐을 때
@@ -215,13 +216,13 @@ function addMessage(chatType, message) { // 메세지 만들어주는 함수
 }
 
 async function showRoom() {
-  welcome.style.display = 'none';
-  room.style.display = 'flex';
-  roomContent.querySelector("#myNickname").innerText = myNickname;
-
   await getMedia(); // 유저 비디오 실행
 
   makeConnection(); // webRTC Connection 생성
+
+  welcome.style.display = 'none';
+  room.style.display = 'flex';
+  roomContent.querySelector("#myNickname").innerText = myNickname;
 }
 
 async function handleRoomSubmit(event) { // 방 접속 함수
@@ -236,20 +237,19 @@ async function handleRoomSubmit(event) { // 방 접속 함수
     switch(status){
       case 'create_room':
         await showRoom();
-        roomName = "";
-        myNickname = "";
+        welcomeForm.querySelector("#roomname").value = "";
+        welcomeForm.querySelector("#nickname").value = "";
         break;
+
       case 'wait_approval':
         const formElements = welcomeForm.elements;
         for(let i = 0; i < formElements.length; i++){
           formElements[i].disabled = true;
         }
-
         welcomeAlert.style.display = 'block';
         waitApprovalObj.counter = 30;
         waitApprovalObj.interval = setInterval(() => {
           welcomeAlertMsg.innerText = `Waiting for Approval (${waitApprovalObj.counter})`;
-          
           if(waitApprovalObj.counter !== 0){
             --waitApprovalObj.counter;
           } else{
@@ -261,6 +261,7 @@ async function handleRoomSubmit(event) { // 방 접속 함수
           }
         }, 1000);
         break;
+
       case 'exceed_max_capacity':
         welcomeAlert.style.display = 'block';
         welcomeAlertMsg.innerText = 'The room is packed!';
@@ -268,29 +269,6 @@ async function handleRoomSubmit(event) { // 방 접속 함수
     }
   });
 }
-
-welcomeForm.addEventListener("submit", handleRoomSubmit);
-muteBtn.addEventListener("click", handleMuteClick);
-cameraBtn.addEventListener("click", handleCameraClick);
-cameraSelect.addEventListener("input", handleCameraChange);
-hangUpBtn.addEventListener("click", hangUp);
-chatBtn.addEventListener('click', () => {
-  if (chatBox.style.display === 'none') {
-    chatBox.style.display = 'flex';
-  } else {
-    chatBox.style.display = 'none';
-  }
-});
-chatTextArea.addEventListener('keydown', (keyboardEvent) => {
-  if (keyboardEvent.key === 'Enter') {
-    keyboardEvent.preventDefault();
-    const msg = chatTextArea.value;
-
-    myDataChannel?.send(msg);
-    addMessage('my-chat', msg);
-    chatTextArea.value = '';
-  }
-});
 
 function hangUp(){
   myPeerConnection.close();
@@ -325,7 +303,7 @@ function hangUp(){
 async function getCameras(){
   try {
     const devices = await navigator.mediaDevices.enumerateDevices(); // 모든 장치 정보
-    const cameras = devices.filter((device)=>device.kind === "videoinput"); // 카메라만
+    const cameras = devices.filter((device) => device.kind === "videoinput"); // 카메라만
     const currentCamera = myStream.getVideoTracks()[0];
     cameras.forEach((camera)=>{
       const option = document.createElement("option");
@@ -335,20 +313,13 @@ async function getCameras(){
         option.selected = true;
       }
       cameraSelect.appendChild(option);
-    })
+    });
   } catch (error) {
     console.log(error);
   }
 }
 
 async function getMedia(deviceId) { // getUserMedia(), deviceId 인자를 받을 수 있음
-  // 현재 스트림이 존재할 때
-  if(myStream) {
-    myStream.getTracks().forEach((track) => {
-      track.stop();
-    })
-  }
-
   const initialDeviceId = {
     audio: true,
     video: {facingMode: "user"}, // 모바일일 경우 셀카 모드, facingMode: {exact: "environment"}(후면카메라)
@@ -431,5 +402,28 @@ function makeConnection(){ // PeerToPeer, 양쪽 브라우저에 peer-to-peer �
     myPeerConnection.addTrack(track, myStream);
   }); // 양쪽 브라우저로 부터 카메라와 마이크의 데이터 Stream을 받아 연결에 집어넣음, addStream()
 }
+
+welcomeForm.addEventListener("submit", handleRoomSubmit);
+muteBtn.addEventListener("click", handleMuteClick);
+cameraBtn.addEventListener("click", handleCameraClick);
+cameraSelect.addEventListener("input", handleCameraChange);
+hangUpBtn.addEventListener("click", hangUp);
+chatBtn.addEventListener('click', () => {
+  if (chatBox.style.display === 'none') {
+    chatBox.style.display = 'flex';
+  } else {
+    chatBox.style.display = 'none';
+  }
+});
+chatTextArea.addEventListener('keydown', (keyboardEvent) => {
+  if (keyboardEvent.key === 'Enter') {
+    keyboardEvent.preventDefault();
+    const msg = chatTextArea.value;
+
+    myDataChannel?.send(msg);
+    addMessage('my-chat', msg);
+    chatTextArea.value = '';
+  }
+});
 
 reset();

@@ -48,7 +48,6 @@ socketIOServer.on("connection", (backSocket) => {
             backSocket.to(roomName).emit("welcome", nickname); 
             done('create_room');
         } else if (userCount === 1){ // 방에 사람이 한명 있으면
-            backSocket["Nickname"] = nickname;
             // 오너에게 승인 요청
             socketIOServer.in(roomName).emit('join_room', nickname, backSocket.id);
             done('wait_approval'); // 오너로부터 승인 대기
@@ -70,6 +69,10 @@ socketIOServer.on("connection", (backSocket) => {
         // 거절됨을 알림
         socketIOServer.in(socketId).emit("declined");
     });
+
+    backSocket.on("hello", (roomName) => {
+        backSocket.to(roomName).emit("welcome");
+    })
 
     backSocket.on("offer", (offer, roomName) => { // 사용자로부터 offer를 받으면
         backSocket.to(roomName).emit("offer", offer);
