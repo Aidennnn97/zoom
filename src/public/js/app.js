@@ -232,6 +232,7 @@ async function handleRoomSubmit(event) { // 방 접속 함수
 
   myNickname = welcomeForm.querySelector("#nickname").value;
   roomName = welcomeForm.querySelector("#roomname").value;
+  roomContent.querySelector("#roomTitle").innerHTML = `<div>${roomName}</div>`;
   
   frontSocket.emit("join_room", roomName, myNickname, async (status) => {
     switch(status){

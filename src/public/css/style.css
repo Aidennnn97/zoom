@@ -107,6 +107,269 @@ body {
   height: 1.5rem;
 }
 
-.modal{
+#room-content {
+  display: flex;
+  flex-direction: column;
+  height: calc(100 * var(--vh, 1vh));
+  width: 100vw;
+  background: black;
+}
+
+#roomTitle{
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 7%;
+}
+
+#roomTitle > div {
+  font-size: 25px;
+}
+
+#stream-wrapper {
+  flex-grow: 1;
+  flex-shrink: 1;
+  flex-basis: auto;
+  justify-content: center;
+  display: flex;
+  width: 100%;
+  max-height: calc(calc(100 * var(--vh, 1vh)) - 50px);
+  position: relative;
+}
+
+#stream-wrapper .stream {
+  z-index: 1;
+  margin: 5px;
+  position: relative;
+}
+
+@media (orientation: landscape) {
+  #stream-wrapper {
+    flex-direction: row;
+  }
+
+  #stream-wrapper .stream {
+    width: 50vw;
+  }
+}
+
+@media (orientation: portrait) {
+  #stream-wrapper {
+    flex-direction: column;
+  }
+
+  #stream-wrapper .stream {
+    height: calc(50% - 10px);
+  }
+}
+
+#stream-wrapper .stream video {
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+}
+
+#stream-wrapper .stream span {
+  z-index: 2;
+  color: white;
+  background: rgba(0, 0, 0, 0.75);
+  padding: 5px 5px 5px 10px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  font-size: 1.2rem;
+}
+
+#stream-wrapper .stream select {
+  z-index: 3;
+  position: absolute;
+  color: white;
+  background: rgba(0, 0, 0, 0.75);
+  font-size: 0.9rem;
+  top: 97%;
+  left: 50%;
+  transform: translate(-50%, 0%);
+}
+
+#chat-wrapper {
+  z-index: 2;
+  flex-direction: column;
+  position: absolute;
+  width: 400px;
+  height: 700px;
+  right: 0px;
+  bottom: 5%;
+  margin: 10px;
+  background: rgb(40 44 46 / 85%);
+  box-shadow: 0 8px 32px 0 rgba(131, 131, 131, 0.185);
+  border-radius: 10px;
+}
+
+@media (max-width: 420px) {
+  #chat-wrapper {
+    width: calc(100% - 20px);
+  }
+}
+
+@media (max-height: 720px) {
+  #chat-wrapper {
+    height: calc(100% - 20px);
+  }
+}
+
+#chat-content-wrapper {
+  flex-grow: 1;
+  min-height: 200px;
+  padding: 7px;
+}
+
+#chat-content-wrapper ul {
+  overflow: hidden;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  height: 100%;
+}
+
+#chat-content-wrapper ul li {
+  margin-top: 5px;
+  display: flex;
+}
+
+#chat-content-wrapper ul li.my-chat {
+  flex-direction: row;
+}
+
+#chat-content-wrapper ul li.peer-chat {
+  flex-direction: row-reverse;
+}
+
+#chat-content-wrapper ul li div.chat-spacer {
+  min-width: 25%;
+  flex-grow: 1;
+  flex-shrink: 0;
+}
+
+#chat-content-wrapper ul li div.chat-span-wrapper {
+  flex-grow: 0;
+  padding: 10px;
+  text-align: left;
+  border-radius: 5px;
+}
+
+#chat-content-wrapper ul li.my-chat div.chat-span-wrapper {
+  background-color: yellow;
+}
+
+#chat-content-wrapper ul li.peer-chat div.chat-span-wrapper {
+  background-color: lightgray;
+}
+
+#chat-input {
+  flex-grow: 1;
+  max-height: 100px;
+  padding: 7px;
+}
+
+#chat-input textarea {
+  width: calc(100% - 7px);
+  height: calc(100% - 7px);
+  background-color: rgb(233, 230, 255);
+  border: 0;
+}
+
+#control {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  grid-column-gap: 10px;
+  justify-items: center;
+  align-items: center;
+  padding-right: 10px;
+  padding-left: 10px;
+  background: rgb(240, 240, 240);
+  height: 50px;
+  flex-shrink: 0;
+  flex-grow: 0;
+}
+
+#control button:first-child {
+  grid-column-start: 1;
+}
+
+#control #chat-button {
+  margin-left: auto;
+  margin-right: 10%;
+}
+
+#control button {
+  margin: 0;
+  height: 40px;
+  width: 100px;
+  border: 0;
+}
+
+#room .modal-overlay,
+.modal {
   display: none;
+}
+
+#room .modal-overlay {
+  z-index: 5;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgb(40 44 46 / 85%);
+  box-shadow: 0 8px 32px 0 rgba(131, 131, 131, 0.185);
+  backdrop-filter: blur(5px);
+  border-radius: 10px;
+  border: 1px solid rbga(255, 255, 255, 0.18);
+}
+
+#room .modal {
+  z-index: 6;
+  background: rgb(40 44 46 / 85%);
+  box-shadow: 0 8px 32px 0 rgba(131, 131, 131, 0.185);
+  backdrop-filter: blur(20px);
+  border-radius: 10px;
+  width: 250px;
+  border: 1px solid rbga(255, 255, 255, 0.18);
+  position: relative;
+  padding: 10px;
+  flex-direction: column;
+  color: white;
+}
+
+#room .modal span,
+button {
+  margin-top: 5px;
+  margin-bottom: 5px;
+  font-size: 0.9rem;
+}
+
+#room .modal span:first-child {
+  font-size: 1rem;
+}
+
+#room .modal button {
+  border: 1px solid black;
+  border-radius: 5px;
+  background-color: black;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: white;
+  height: 1.5rem;
+}
+
+#room .modal button#leave-room,
+button#approve {
+  margin-top: 15px;
 }
