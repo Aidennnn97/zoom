@@ -1,6 +1,6 @@
 // FrontEnd
 const welcome = document.getElementById("welcome");
-const welcomeForm = welcome.querySelector("form"); // 방 생성 폼
+const welcomeForm = welcome.querySelector("form");
 const welcomeAlert = welcome.querySelector("#alert");
 const welcomeAlertMsg = welcomeAlert.querySelector("span");
 const room = document.getElementById("room");
@@ -27,7 +27,7 @@ let myPeerConnection;
 let myDataChannel;
 let frontSocket = createNewSocket();
 
-// 방 입장 요청 시간
+// 게스트 방 입장 요청 시간 Obj
 const waitApprovalObj = {
   interval: null,
   counter: 0,
@@ -36,7 +36,7 @@ const waitApprovalObj = {
 function createNewSocket(){
   const newSocket = io(); // io는 자동적으로 back-end socket과 연결해줌
 
-  // 방입장
+  // 방입장 요청 승인 또는 거절
   newSocket.on("join_room", (nickname, socketId) => {
     // 게스트 닉네임 저장
     peerNickname = nickname;
@@ -62,7 +62,7 @@ function createNewSocket(){
       }
     }, 1000);
   
-    // 게스트 요청 승인버튼
+    // 요청 승인버튼
     const approveBtn = joinModal.querySelector("#approve");
     approveBtn.addEventListener("click", () => {
       // 게스트 요청 승인
@@ -72,7 +72,7 @@ function createNewSocket(){
       joinModal.style.display = 'none';
       clearInterval(waitApprovalObj.interval);
 
-      // 상대방 별명
+      // 게스트 별명
       roomContent.querySelector("#peerNickname").innerText = peerNickname;
     });
   
@@ -113,8 +113,8 @@ function createNewSocket(){
     });
   
     const offer = await myPeerConnection.createOffer(); // 상대방이 참가할 수 있도록 초대장을 만드는 역할, 이것으로 연결을 구성해야함, createOffer()
-    myPeerConnection.setLocalDescription(offer); // setLocalDescription()
-    newSocket.emit("offer", offer, roomName); // 서버에 어떤 방이 이 Offer를 emit할 건지, 누구한테로 이 Offer를 보낼건지 알려주면 서버가 상대방에게 보냄
+    await myPeerConnection.setLocalDescription(offer); // setLocalDescription()
+    newSocket.emit("offer", offer, roomName); // Socket.IO서버에 어떤 방이 이 Offer를 emit할 건지, 누구한테로 이 Offer를 보낼건지 알려주면 서버가 상대방에게 보냄
   });
 
   newSocket.on("offer", async (offer) => { // 상대방이 오퍼를 받음
@@ -377,7 +377,7 @@ async function handleCameraChange(){
   }
 }
 
-function makeConnection(){ // PeerToPeer, 양쪽 브라우저에 peer-to-peer 연결 생성
+function makeConnection(){ // PeerToPeer, 양쪽 브라우저에 peer-to-peer Connection 생성
   myPeerConnection = new RTCPeerConnection({ 
     iceServers: [
       {
@@ -401,7 +401,7 @@ function makeConnection(){ // PeerToPeer, 양쪽 브라우저에 peer-to-peer �
 
   myStream.getTracks().forEach((track) => {
     myPeerConnection.addTrack(track, myStream);
-  }); // 양쪽 브라우저로 부터 카메라와 마이크의 데이터 Stream을 받아 연결에 집어넣음, addStream()
+  }); // 양쪽 브라우저로 부터 카메라와 마이크의 데이터 Stream을 받아 Connection에 저장해서 공유, addStream()
 }
 
 welcomeForm.addEventListener("submit", handleRoomSubmit);

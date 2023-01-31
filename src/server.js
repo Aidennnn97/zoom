@@ -70,23 +70,23 @@ socketIOServer.on("connection", (backSocket) => {
         socketIOServer.in(socketId).emit("declined");
     });
 
-    backSocket.on("hello", (roomName) => {
+    backSocket.on("hello", (roomName) => { // 게스트가 방에 입장하면
         backSocket.to(roomName).emit("welcome");
     })
 
-    backSocket.on("offer", (offer, roomName) => { // 사용자로부터 offer를 받으면
+    backSocket.on("offer", (offer, roomName) => { // 게스트로부터 offer를 받으면
         backSocket.to(roomName).emit("offer", offer);
     });
 
-    backSocket.on("answer", (answer, roomName) => {
+    backSocket.on("answer", (answer, roomName) => { // 게스트로부터 answer를 받으면
         backSocket.to(roomName).emit("answer", answer);
     });
 
-    backSocket.on("ice", (ice, roomName) => {
+    backSocket.on("ice", (ice, roomName) => { // 오너와 게스트 IceCandidate 서로 공유
         backSocket.to(roomName).emit("ice", ice);
     });
 
-    backSocket.on("leaveRoom", (roomName, done) => {
+    backSocket.on("leaveRoom", (roomName, done) => { // 둘중 한 사람이 방을 나가면
         backSocket.to(roomName).emit("peer-leaving");
         backSocket.leave(roomName);
         done();
@@ -100,7 +100,6 @@ socketIOServer.on("connection", (backSocket) => {
     });
 
 })
-
 
 httpServer.listen(3000, () => {
     console.log(`Listening on http://localhost:3000`);
